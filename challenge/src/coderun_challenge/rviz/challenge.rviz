@@ -60,9 +60,9 @@ Visualization Manager:
     Current:
       Class: rviz_default_plugins/TopDownOrtho
       Name: Current View
-      Scale: 55
-      X: 0
-      Y: 0
+      Scale: 50
+      X: 5
+      Y: 5
       Angle: 0
       Near Clip Distance: 0.01
     Saved: ~

@@ -34,7 +34,7 @@ docker exec -it coderun bash
 
 Run your solution:
 ```bash
-ros2 run coderun_student solution
+python3 ~/ros_ws/src/coderun_student/coderun_student/solution.py
 ```
 
 ## Your Task
