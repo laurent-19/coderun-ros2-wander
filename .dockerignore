@@ -1,0 +1,6 @@
+**/__pycache__
+**/*.pyc
+**/.git
+**/README.md
+**/STUDENT_GUIDE.md
+*.pdf
