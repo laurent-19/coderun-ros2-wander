@@ -5,20 +5,19 @@ Navigate a differential-drive robot through an arena to reach goal poses in orde
 ## Quick Start
 
 ```bash
-# Build the image
-docker build -t coderun .
+docker pull laurentiupopa/coderun-ros2-wander:latest
+```
 
-# Run with GUI (X11)
+```bash
 xhost +local:root
-export ROS_DOMAIN_ID=1  # Use your team number
+```
 
-docker run -it --name coderun \
-  --privileged --network=host \
-  -e DISPLAY=$DISPLAY \
-  -e ROS_DOMAIN_ID=$ROS_DOMAIN_ID \
-  -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
-  -w /root/ros_ws \
-  coderun bash
+```bash
+export ROS_DOMAIN_ID=1
+```
+
+```bash
+docker run -it --name coderun --privileged --network=host -e DISPLAY=$DISPLAY -e ROS_DOMAIN_ID=$ROS_DOMAIN_ID -v /tmp/.X11-unix:/tmp/.X11-unix:ro -w /root/ros_ws laurentiupopa/coderun-ros2-wander:latest bash
 ```
 
 ## Running the Challenge
@@ -28,7 +27,12 @@ docker run -it --name coderun \
 ros2 launch coderun_challenge challenge.launch.py task:=easy team:=MyTeam
 ```
 
-**Terminal 2** — Your solution:
+**Terminal 2** — Open new terminal in container:
+```bash
+docker exec -it coderun bash
+```
+
+Run your solution:
 ```bash
 ros2 run coderun_student solution
 ```
@@ -58,3 +62,18 @@ Edit `/root/ros_ws/src/coderun_student/coderun_student/solution.py`:
 Result: `/tmp/coderun_result.json`
 
 See `challenge/STUDENT_GUIDE.md` for detailed setup instructions.
+
+## Troubleshooting
+
+**Build from source** (if pull fails):
+```bash
+git clone https://github.com/laurentiupopa/coderun-ros2-wander.git
+```
+
+```bash
+cd coderun-ros2-wander
+```
+
+```bash
+docker build -t laurentiupopa/coderun-ros2-wander:latest .
+```
