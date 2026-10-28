@@ -1,27 +1,7 @@
-# CodeRun 2026 - Minimal ROS 2 Humble image for path planning challenge
-# Based on official ros:humble-ros-core (smallest ROS 2 base)
+# CodeRun 2026 - Path planning challenge
+# Based on ros2-efac which includes stage_ros2, rviz2, and dependencies
 
-FROM ros:humble-ros-core
-
-# Avoid interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install minimal dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Build tools
-    python3-pip \
-    python3-colcon-common-extensions \
-    # ROS 2 packages (minimal set)
-    ros-humble-stage-ros2 \
-    ros-humble-rviz2 \
-    ros-humble-nav-msgs \
-    ros-humble-visualization-msgs \
-    # Python dependencies
-    python3-numpy \
-    python3-scipy \
-    python3-pil \
-    python3-yaml \
-    && rm -rf /var/lib/apt/lists/*
+FROM laurentiupopa/ros2-efac:ros2
 
 # Create workspace
 WORKDIR /root/ros_ws/src
