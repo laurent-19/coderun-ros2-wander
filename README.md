@@ -2,6 +2,39 @@
 
 Navigate a differential-drive robot through an arena to reach goal poses in order, as fast as possible.
 
+![Demo](doc/coderun-demo.gif)
+
+## Preliminaries
+
+### Windows (WSL)
+
+```bash
+wsl --install -d Ubuntu-22.04
+```
+
+Inside WSL, install Docker Engine:
+```bash
+sudo apt update && sudo apt install -y docker.io x11-xserver-utils
+```
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+Log out and back in (or `newgrp docker`).
+
+### Ubuntu (native)
+
+```bash
+sudo apt update && sudo apt install -y docker.io x11-xserver-utils
+```
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+Log out and back in.
+
 ## Quick Start
 
 ```bash
@@ -37,6 +70,11 @@ Run your solution:
 python3 ~/ros_ws/src/coderun_student/coderun_student/solution.py
 ```
 
+| Easy Mode | Hard Mode |
+|-----------|-----------|
+| ![Easy RViz](doc/easy-rviz.png) | ![Hard RViz](doc/hard-rviz.png) |
+| ![Easy Stage](doc/easy-stage-map.png) | ![Hard Stage](doc/hard-stage-map.png) |
+
 ## Your Task
 
 Edit `/root/ros_ws/src/coderun_student/coderun_student/solution.py`:
@@ -61,9 +99,17 @@ Edit `/root/ros_ws/src/coderun_student/coderun_student/solution.py`:
 
 Result: `/tmp/coderun_result.json`
 
-See `challenge/STUDENT_GUIDE.md` for detailed setup instructions.
-
 ## Troubleshooting
+
+**xhost not found:**
+```bash
+sudo apt install x11-xserver-utils
+```
+
+**Container name exists:**
+```bash
+docker rm coderun
+```
 
 **Build from source** (if pull fails):
 ```bash
