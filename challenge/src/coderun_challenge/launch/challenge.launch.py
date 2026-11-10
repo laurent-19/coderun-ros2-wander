@@ -2,17 +2,22 @@
 Launch the CodeRun arena (Stage) together with the goal server and the automatic scorer.
 
     ros2 launch coderun_challenge challenge.launch.py task:=easy team:=Alpha
-    ros2 launch coderun_challenge challenge.launch.py task:=hard seed:=42 gui:=false rviz:=false
+    ros2 launch coderun_challenge challenge.launch.py task:=hard seed:=42 rviz:=false
 
 Arguments:
     task        easy | hard
     team        team name written into the result file
     seed        seed of the random goals (default: a new random one at every launch; it is
                 printed and written to the result, so a run can be repeated)
-    gui         show the Stage window (false = headless, for grading)
+    gui         show the Stage window. Keep it true: without the window Stage runs as fast as
+                it can (not real time), controllers and the scorer clock then break
     rviz        open RViz with the map and the goal rectangles (false for grading / headless)
-    time_limit  seconds before the run is cut off (default 1200)
+    time_limit  seconds from the first motion before the run is cut off (default 1200)
     result_file where the JSON result is written
+    slot_minutes_left   graders: minutes left in the CodeRun slot when the team handed in
+                        (time points, see scorer.py; default 0)
+    ground_truth_topic  graders: rename Stage's ground truth topic for the judge (default
+                        ground_truth)
 
 The goals (static ones from config/<task>_goals.yaml + random ones) are sampled HERE, at
 launch; the world file with the goal markers is generated into a temporary directory.
@@ -43,6 +48,8 @@ def _setup(context):
     if task not in TASKS:
         raise RuntimeError(f"task must be one of {TASKS}, got '{task}'")
     gui = LaunchConfiguration('gui').perform(context).lower() == 'true'
+    if not gui:
+        print('[coderun] WARNING gui:=false - Stage runs faster than real time, the run is NOT valid')
     seed = LaunchConfiguration('seed').perform(context) or str(random.SystemRandom().randrange(10 ** 9))
 
     with open(os.path.join(share, 'config', f'{task}_goals.yaml')) as f:
@@ -54,9 +61,11 @@ def _setup(context):
 
     world = worldgen.write_world(task, cfg, goals, share, tempfile.mkdtemp(prefix='coderun_world_'))
 
+    gt_topic = LaunchConfiguration('ground_truth_topic').perform(context)
     stage = Node(
         package='stage_ros2', executable='stage_ros2', name='stage', output='screen',
-        parameters=[{'world_file': world, 'enable_gui': gui, 'publish_ground_truth': True}])
+        parameters=[{'world_file': world, 'enable_gui': gui, 'publish_ground_truth': True}],
+        remappings=[('ground_truth', gt_topic)])
     server = Node(
         package='coderun_challenge', executable='goal_server', name='goal_server', output='screen',
         parameters=[{'task': task, 'goals': flat}])
@@ -67,6 +76,8 @@ def _setup(context):
             'team': LaunchConfiguration('team').perform(context),
             'time_limit': float(LaunchConfiguration('time_limit').perform(context)),
             'result_file': LaunchConfiguration('result_file').perform(context),
+            'slot_minutes_left': float(LaunchConfiguration('slot_minutes_left').perform(context)),
+            'ground_truth_topic': gt_topic,
             'goals': flat,
             'seed': seed,
         }])
@@ -90,5 +101,7 @@ def generate_launch_description():
         DeclareLaunchArgument('rviz', default_value='true'),
         DeclareLaunchArgument('time_limit', default_value='1200'),
         DeclareLaunchArgument('result_file', default_value='/tmp/coderun_result.json'),
+        DeclareLaunchArgument('slot_minutes_left', default_value='0'),
+        DeclareLaunchArgument('ground_truth_topic', default_value='ground_truth'),
         OpaqueFunction(function=_setup),
     ])
