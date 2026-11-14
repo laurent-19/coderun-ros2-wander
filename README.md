@@ -48,6 +48,7 @@ Press the Windows key, type `PowerShell` and open **Windows PowerShell**:
 |---|---|
 | <img src="doc/win-powershell-search.png" alt="Search for PowerShell" width="200"> | <img src="doc/win-powershell-terminal.png" alt="PowerShell terminal" width="350"> |
 
+Install WSL with Ubuntu 22.04 (only once):
 ```bash
 wsl --install -d Ubuntu-22.04
 ```
@@ -68,93 +69,81 @@ where none of the commands below work.
 
 ### Step 2: install Docker
 
-In the Ubuntu terminal:
+In the Ubuntu terminal, update the list of packages (type your Linux password when asked; it stays invisible while you type):
 ```bash
 sudo apt update
 ```
 
+Install Docker, plus `xhost`, which lets the container open windows:
 ```bash
 sudo apt install -y docker.io x11-xserver-utils
 ```
 
+Allow your user to run `docker`:
 ```bash
 sudo usermod -aG docker $USER
 ```
-Apply the new group, so you can use `docker` without `sudo`:
+
+Apply that now, so you can use `docker` without `sudo`:
 ```bash
 newgrp docker
 ```
 
 ### Step 3: download the image and create your container
 
+Download the challenge image (1.8 GB):
 ```bash
 docker pull laurentiupopa/coderun-ros2-wander:latest
 ```
 
+Allow the container to open windows (Stage, RViz) on your screen:
 ```bash
 xhost +local:root
 ```
 
-Replace `<team number>` with your team number (1-99):
+Set your team number: replace `<team number>` with it (1-99). This keeps your robot separate from the
+other teams' robots:
 ```bash
 export ROS_DOMAIN_ID=<team number>    # e.g. export ROS_DOMAIN_ID=1
 ```
 
+Create your container `coderun` and open a shell in it (only once):
 ```bash
 docker run -it --name coderun --privileged --network=host -e DISPLAY=$DISPLAY -e ROS_DOMAIN_ID=$ROS_DOMAIN_ID -e ROS_LOCALHOST_ONLY=1 -v /tmp/.X11-unix:/tmp/.X11-unix:ro -w /root/ros_ws laurentiupopa/coderun-ros2-wander:latest bash
 ```
 
-The prompt changes to `root@...:~/ros_ws#`: you're now **inside the container**. The team number keeps
-your robot separate from the other teams' robots.
+The prompt changes to `root@...:~/ros_ws#`: you're now **inside the container**.
 
-Setup is done. Leave the container with `Ctrl+D`: the prompt goes back to `you@pc:~$`. From now on you
-start it as in [Working on your solution](#5-working-on-your-solution).
+$\color{red}{\textsf{Setup is done.}}$ Leave the container with $\color{red}{\texttt{Ctrl+D}}$: the prompt goes back to `you@pc:~$`. From now on you
+start it as in [Working on your solution](#3-working-on-your-solution).
 
 Do `docker run` **only once**. Your code lives inside this container: `docker rm coderun` deletes it.
 
-## 3. Scoring
+## 3. Working on your solution
 
-| Mode | Max | Baseline | Goals | Time points |
-|------|-----|----------|-------|-------------|
-| EASY | 110 | 10 | **18 per goal** (90), −5 per collision | 0.5 per minute left in the slot, max 10 |
-| HARD | 220 | 20 | **45 per goal** (180), −10 per collision | 1 per minute left in the slot, max 20 |
+You need **two terminals**, both inside the container: $\color{red}{\textsf{Terminal 1}}$ and $\color{red}{\textsf{Terminal 2}}$.
 
-- **Baseline:** for taking part.
-- **Time points:** for every minute left in the slot when you hand in, but only if your goal points
-  are **at least 50%** (≥ 45 EASY / ≥ 90 HARD).
-- **Ties:** the faster robot run wins.
+**$\color{red}{\textsf{Terminal 1}}$: the arena and the judge.** Open an Ubuntu terminal.
 
-Example: EASY, 5/5 goals, 1 collision, handed in 12 min before the end: 10 + (90 − 5) + 0.5 × 12 = **101**.
-
-## 4. Rules
-
-- **No AI** (ChatGPT, Copilot, Claude, Gemini, …). Docs and web search are fine. Be ready to explain
-  your code.
-- **Hand in** your whole `coderun_student` folder by email (see [Hand in](#6-hand-in)). Write your code in
-  `python/solution.py` **or** `src/solution.cpp` (extra files next to it are fine).
-- Use only `/goals`, `/map`, `/odom`, `/base_scan` and `/cmd_vel`. Never touch `/ground_truth`.
-- The staff grade your solution on their machine, on seeds you don't know, and average the runs.
-
-## 5. Working on your solution
-
-You need **two terminals**, both inside the container.
-
-**Terminal 1: the arena and the judge.** Open an Ubuntu terminal and start your container:
+Allow the container to open windows (Stage, RViz) on your screen:
 ```bash
 xhost +local:root
 ```
 
+Start your container and open a shell in it:
 ```bash
 docker start -i coderun
 ```
-Then start the arena (`task:=hard` for HARD):
+
+Start the arena and the judge (`task:=hard` for HARD; stop with `Ctrl+C`):
 ```bash
 ros2 launch coderun_challenge challenge.launch.py task:=easy
 ```
 Stage and RViz open. Keep the Stage window open (a run without it is not valid).
 
-**Terminal 2: your code.** Open a **new** Ubuntu terminal (Windows: WSL app or PowerShell + `wsl`) and
-enter the same container:
+**$\color{red}{\textsf{Terminal 2}}$: your code.** Open a **new** Ubuntu terminal (Windows: WSL app or PowerShell + `wsl`).
+
+Open a second shell in the same, running container:
 ```bash
 docker exec -it coderun bash
 ```
@@ -163,54 +152,66 @@ The prompt changes to `root@...:~/ros_ws#`: you're inside the container.
 
 <img src="doc/docker-terminal.png" alt="docker exec into the container" width="400">
 
-Edit, build and run your code here. Save in `nano` with `Ctrl+O` `Enter`, exit with `Ctrl+X`.
+Edit, build and run your code here.
 
-**Python** (no build needed):
+**Python** (no build needed).
+
+Open your Python code in the editor:
 ```bash
 nano src/coderun_student/python/solution.py
 ```
 
+In `nano`: change the code, **save with `Ctrl+S`**, **exit with `Ctrl+X`**.
+
+Run your solution (stop it with `Ctrl+C`):
 ```bash
 ros2 run coderun_student solution.py
 ```
 
-**C++** (build again after every change):
+**C++** (build again after every change).
+
+Open your C++ code in the editor:
 ```bash
 nano src/coderun_student/src/solution.cpp
 ```
 
+In `nano`: change the code, **save with `Ctrl+S`**, **exit with `Ctrl+X`**.
+
+Compile your code:
 ```bash
 colcon build --packages-select coderun_student
 ```
 
+Load the program you just compiled:
 ```bash
 source install/setup.bash
 ```
 
+Run your solution (stop it with `Ctrl+C`):
 ```bash
 ros2 run coderun_student solution_cpp
 ```
 
 **Test loop:**
 
-1. Terminal 1: start the arena. Terminal 2: build (C++) and run your solution.
-2. Watch the robot. When all goals are reached (or time is up), Terminal 1 prints `FINISHED ...` with
-   your score and the arena closes. The details are in a file you can read in Terminal 2:
+1. $\color{red}{\textsf{Terminal 1}}$: start the arena. $\color{red}{\textsf{Terminal 2}}$: build (C++) and run your solution.
+2. Watch the robot. When all goals are reached (or time is up), $\color{red}{\textsf{Terminal 1}}$ prints `FINISHED ...` with
+   your score and the arena closes. The details are in a file you can read in $\color{red}{\textsf{Terminal 2}}$:
    ```bash
    cat /tmp/coderun_result.json
    ```
-3. Stop your node with `Ctrl+C` (Terminal 2), edit, and go back to 1. To stop a run early, press
-   `Ctrl+C` in Terminal 1 too.
+3. Stop your node with `Ctrl+C` ($\color{red}{\textsf{Terminal 2}}$), edit, and go back to 1. To stop a run early, press
+   `Ctrl+C` in $\color{red}{\textsf{Terminal 1}}$ too.
 
 **Stopping:**
 
 | Keys | In | Does |
 |------|----|------|
-| `Ctrl+C` | Terminal 1 | closes the simulation (Stage, RViz, judge) |
-| `Ctrl+C` | Terminal 2 | stops your solution node |
+| `Ctrl+C` | $\color{red}{\textsf{Terminal 1}}$ | closes the simulation (Stage, RViz, judge) |
+| `Ctrl+C` | $\color{red}{\textsf{Terminal 2}}$ | stops your solution node |
 | `Ctrl+D` | either | leaves the container (prompt back to `you@pc:~$`) |
 
-`Ctrl+D` in Terminal 1 also stops the container. Your code is kept: `docker start -i coderun` again.
+`Ctrl+D` in $\color{red}{\textsf{Terminal 1}}$ also stops the container. Your code is kept: `docker start -i coderun` again.
 
 This is the **same judge** the staff use for grading, so your local score is your real score, minus
 the time points (added at hand-in).
@@ -218,37 +219,7 @@ the time points (added at hand-in).
 The goals change at every launch. To repeat exactly the same goals while debugging, add `seed:=42` (any
 number) to the launch command. Test on several seeds: grading uses seeds you don't know.
 
-## 6. Hand in
-
-**1. Copy your code out of the container.** In an Ubuntu terminal **outside** the container (prompt
-`you@pc:~$`, not `root@...`):
-Delete the old copy first (if there is one):
-```bash
-rm -rf ~/coderun_student
-```
-
-```bash
-docker cp coderun:/root/ros_ws/src/coderun_student ~/
-```
-This puts the whole `coderun_student` folder (Python and C++) in your Linux home. Do it often as a
-backup too.
-
-**2. Find the folder.** Windows: open File Explorer and paste this in the address bar:
-```
-\\wsl.localhost\Ubuntu-22.04\home
-```
-Then open your Linux username → `coderun_student`. Or click your way there: **Linux** → **Ubuntu-22.04**
-→ `home`. Ubuntu: it's in your home folder.
-
-| Address bar | Sidebar |
-|---|---|
-| <img src="doc/win-wsl-location-path.png" alt="WSL path in the File Explorer address bar" width="400"> | <img src="doc/win-wsl-location.png" alt="Linux in File Explorer" width="200"> |
-
-**3. Zip and email it.** Right-click `coderun_student` → *Compress to ZIP file*, and send the zip to
-**ioanlaurentiupopa16@gmail.com** with the subject **`Coderun ROS2 wander - <TeamName>`**. In the
-email, say whether you used **Python** or **C++**. The time of the email is your hand-in time.
-
-## 7. Your code
+## 4. Your code
 
 The template is already written: it reads the topics, drives through a list of waypoints and publishes
 the speeds. You complete the lines marked **TODO** (search the file for `TODO`). You don't need to know
@@ -300,6 +271,61 @@ full `/map`.
 
 A team of three can split it: TODO 1 + testing, TODO 2-6, TODO 7-8.
 
+## 5. Scoring
+
+| Mode | Max | Baseline | Goals | Time points |
+|------|-----|----------|-------|-------------|
+| EASY | 110 | 10 | **18 per goal** (90), −5 per collision | 0.5 per minute left in the slot, max 10 |
+| HARD | 220 | 20 | **45 per goal** (180), −10 per collision | 1 per minute left in the slot, max 20 |
+
+- **Baseline:** for taking part.
+- **Time points:** for every minute left in the slot when you hand in, but only if your goal points
+  are **at least 50%** (≥ 45 EASY / ≥ 90 HARD).
+- **Ties:** the faster robot run wins.
+
+Example: EASY, 5/5 goals, 1 collision, handed in 12 min before the end: 10 + (90 − 5) + 0.5 × 12 = **101**.
+
+## 6. Rules
+
+- **No AI** (ChatGPT, Copilot, Claude, Gemini, …). Docs and web search are fine. Be ready to explain
+  your code.
+- **Hand in** your whole `coderun_student` folder by email (see [Hand in](#7-hand-in)). Write your code in
+  `python/solution.py` **or** `src/solution.cpp` (extra files next to it are fine).
+- Use only `/goals`, `/map`, `/odom`, `/base_scan` and `/cmd_vel`. Never touch `/ground_truth`.
+- The staff grade your solution on their machine, on seeds you don't know, and average the runs.
+
+## 7. Hand in
+
+**1. Copy your code out of the container.** In an Ubuntu terminal **outside** the container (prompt
+`you@pc:~$`, not `root@...`):
+
+Delete the old copy, if there is one:
+```bash
+rm -rf ~/coderun_student
+```
+
+Copy the `coderun_student` folder out of the container into your Linux home:
+```bash
+docker cp coderun:/root/ros_ws/src/coderun_student ~/
+```
+This puts the whole `coderun_student` folder (Python and C++) in your Linux home. Do it often as a
+backup too.
+
+**2. Find the folder.** Windows: open File Explorer and paste this in the address bar:
+```
+\\wsl.localhost\Ubuntu-22.04\home
+```
+Then open your Linux username → `coderun_student`. Or click your way there: **Linux** → **Ubuntu-22.04**
+→ `home`. Ubuntu: it's in your home folder.
+
+| Address bar | Sidebar |
+|---|---|
+| <img src="doc/win-wsl-location-path.png" alt="WSL path in the File Explorer address bar" width="400"> | <img src="doc/win-wsl-location.png" alt="Linux in File Explorer" width="200"> |
+
+**3. Zip and email it.** Right-click `coderun_student` → *Compress to ZIP file*, and send the zip to
+**ioanlaurentiupopa16@gmail.com** with the subject **`Coderun ROS2 wander - <TeamName>`**. In the
+email, say whether you used **Python** or **C++**. The time of the email is your hand-in time.
+
 ## Troubleshooting
 
 | Problem | Fix |
@@ -311,15 +337,19 @@ A team of three can split it: TODO 1 + testing, TODO 2-6, TODO 7-8.
 | Robot doesn't react to your node | Both terminals must be inside the same container (`docker exec`). |
 | `docker pull` fails | Build the image yourself (see below). |
 
-If `docker pull` fails, build the image yourself:
+If `docker pull` fails, build the image yourself.
+
+Download the source code:
 ```bash
 git clone https://github.com/laurent-19/coderun-ros2-wander.git
 ```
 
+Go into its folder:
 ```bash
 cd coderun-ros2-wander
 ```
 
+Build the image (this takes a while):
 ```bash
 docker build -t laurentiupopa/coderun-ros2-wander:latest .
 ```
