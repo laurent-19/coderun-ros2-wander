@@ -5,6 +5,7 @@ Draw the README figures that explain the challenge rules (host only, needs matpl
     doc/legend.png      what the markers in Stage / RViz mean, collisions, goal order
     doc/goal-check.png  when a goal counts as reached (position AND heading)
     doc/hard-grid.png   the template's planning grid on the HARD map with a BFS path (seed 42)
+    doc/bfs.png         how breadth-first search finds a path, on a small example grid
 
     python3 doc/make_figures.py
 
@@ -216,8 +217,80 @@ def hard_grid(seed=42):
     plt.close(fig)
 
 
+def bfs():
+    rows, cols = 6, 8
+    walls = {(r, 4) for r in range(1, 6)} | {(4, 1), (4, 2)}
+    start, goal = (3, 1), (3, 6)
+    free = lambda c: 0 <= c[0] < rows and 0 <= c[1] < cols and c not in walls
+    came_from, step, queue = {start: None}, {start: 0}, deque([start])
+    while queue:
+        u = queue.popleft()
+        if u == goal:
+            break
+        for v in ((u[0] + 1, u[1]), (u[0] - 1, u[1]), (u[0], u[1] + 1), (u[0], u[1] - 1)):
+            if free(v) and v not in came_from:
+                came_from[v], step[v] = u, step[u] + 1
+                queue.append(v)
+    path, c = [], goal
+    while c is not None:
+        path.append(c)
+        c = came_from[c]
+
+    fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.1))
+    titles = ['1. Start: the queue holds only S',
+              '2. Spread out: each free neighbour gets\nthe next step number and remembers where it came from',
+              '3. Goal found: walk back with came_from\n(G -> ... -> S), then reverse the list']
+    shade = plt.get_cmap('Blues')
+    for k, ax in enumerate(axes):
+        for r in range(rows):
+            for c in range(cols):
+                cell, fc = (r, c), 'white'
+                if cell in walls:
+                    fc = WALL
+                elif k == 1 and cell in step:
+                    fc = shade(0.12 + 0.5 * step[cell] / max(step.values()))
+                elif k == 2 and cell in path:
+                    fc = '#90caf9'
+                ax.add_patch(patches.Rectangle((c, r), 1, 1, fc=fc, ec='gray', lw=0.8))
+                if k == 1 and cell in step and cell not in (start, goal):
+                    ax.text(c + 0.5, r + 0.5, str(step[cell]), ha='center', va='center', fontsize=10)
+        for cell, label, color in ((start, 'S', GREEN), (goal, 'G', CYAN)):
+            ax.add_patch(patches.Rectangle((cell[1], cell[0]), 1, 1, fc=color, ec='gray', lw=0.8))
+            ax.text(cell[1] + 0.5, cell[0] + 0.5, label, ha='center', va='center', fontsize=13, weight='bold')
+        if k == 0:
+            for v in ((start[0] + 1, start[1]), (start[0] - 1, start[1]), (start[0], start[1] + 1),
+                      (start[0], start[1] - 1)):
+                if free(v):
+                    ax.annotate('', xy=(v[1] + 0.5, v[0] + 0.5), xytext=(start[1] + 0.5, start[0] + 0.5),
+                                arrowprops=dict(arrowstyle='->', color=OK, lw=1.8))
+            ax.text(cols / 2, -0.55, 'free_neighbours(S): up, down, left, right (no diagonals, no walls)',
+                    ha='center', va='center', fontsize=9, color=OK)
+        if k == 1:
+            for v, u in came_from.items():
+                if u is not None and step[v] <= 3:
+                    ax.annotate('', xy=(u[1] + 0.5, u[0] + 0.5), xytext=(v[1] + 0.5, v[0] + 0.5),
+                                arrowprops=dict(arrowstyle='->', color='#555555', lw=0.8, alpha=0.7))
+            ax.text(cols / 2, -0.55, 'grey arrows = came_from (shown for steps 1-3)', ha='center',
+                    va='center', fontsize=9, color='#555555')
+        if k == 2:
+            for v, u in zip(path, path[1:]):
+                ax.annotate('', xy=(u[1] + 0.5, u[0] + 0.5), xytext=(v[1] + 0.5, v[0] + 0.5),
+                            arrowprops=dict(arrowstyle='->', color='#1565c0', lw=2))
+            ax.text(cols / 2, -0.55, f'path = {len(path)} cells: the fewest possible', ha='center',
+                    va='center', fontsize=9, color='#1565c0')
+        ax.set_xlim(0, cols)
+        ax.set_ylim(-1, rows)
+        ax.set_aspect('equal')
+        ax.axis('off')
+        ax.set_title(titles[k], fontsize=10)
+    fig.tight_layout()
+    fig.savefig(OUT / 'bfs.png', dpi=100)
+    plt.close(fig)
+
+
 if __name__ == '__main__':
     legend()
     goal_check()
     hard_grid()
-    print('wrote', OUT / 'legend.png', OUT / 'goal-check.png', OUT / 'hard-grid.png')
+    bfs()
+    print('wrote', OUT / 'legend.png', OUT / 'goal-check.png', OUT / 'hard-grid.png', OUT / 'bfs.png')

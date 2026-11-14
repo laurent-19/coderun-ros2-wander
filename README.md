@@ -42,7 +42,7 @@ to step 2. On **Windows**, you first need WSL, which gives you Ubuntu inside Win
 
 ### Step 1 (Windows only): install WSL and open an Ubuntu terminal
 
-Press the Windows key, type `PowerShell`, right-click **Windows PowerShell** → *Run as administrator*:
+Press the Windows key, type `PowerShell` and open **Windows PowerShell**:
 
 | Search | PowerShell |
 |---|---|
@@ -107,6 +107,9 @@ docker run -it --name coderun --privileged --network=host -e DISPLAY=$DISPLAY -e
 The prompt changes to `root@...:~/ros_ws#`: you're now **inside the container**. The team number keeps
 your robot separate from the other teams' robots.
 
+Setup is done. Leave the container with `Ctrl+D`: the prompt goes back to `you@pc:~$`. From now on you
+start it as in [Working on your solution](#5-working-on-your-solution).
+
 Do `docker run` **only once**. Your code lives inside this container: `docker rm coderun` deletes it.
 
 ## 3. Scoring
@@ -136,8 +139,7 @@ Example: EASY, 5/5 goals, 1 collision, handed in 12 min before the end: 10 + (90
 
 You need **two terminals**, both inside the container.
 
-**Terminal 1: the arena and the judge.** The first time, this is the terminal where you ran
-`docker run`. Later (new day, after a reboot), open an Ubuntu terminal and run:
+**Terminal 1: the arena and the judge.** Open an Ubuntu terminal and start your container:
 ```bash
 xhost +local:root
 ```
@@ -200,6 +202,16 @@ ros2 run coderun_student solution_cpp
 3. Stop your node with `Ctrl+C` (Terminal 2), edit, and go back to 1. To stop a run early, press
    `Ctrl+C` in Terminal 1 too.
 
+**Stopping:**
+
+| Keys | In | Does |
+|------|----|------|
+| `Ctrl+C` | Terminal 1 | closes the simulation (Stage, RViz, judge) |
+| `Ctrl+C` | Terminal 2 | stops your solution node |
+| `Ctrl+D` | either | leaves the container (prompt back to `you@pc:~$`) |
+
+`Ctrl+D` in Terminal 1 also stops the container. Your code is kept: `docker start -i coderun` again.
+
 This is the **same judge** the staff use for grading, so your local score is your real score, minus
 the time points (added at hand-in).
 
@@ -238,8 +250,45 @@ email, say whether you used **Python** or **C++**. The time of the email is your
 
 ## 7. Your code
 
-The template already subscribes to everything and publishes `/cmd_vel` 10 times a second. You fill in
-the TODOs in `control_loop()`.
+The template is already written: it reads the topics, drives through a list of waypoints and publishes
+the speeds. You complete the lines marked **TODO** (search the file for `TODO`). You don't need to know
+ROS: the robot's pose is in `self.x, self.y, self.yaw` (C++: `x_, y_, yaw_`), the goals in
+`self.goals` (`goals_`).
+
+| | TODO | Where | What you decide |
+|---|---|---|---|
+| **EASY** | 1 | `plan_waypoints()` | The corner point between two goals (drive along x, then along y). |
+| | 2-6 | `follow_waypoint()` | Turn and drive speeds, and when a goal's heading is close enough. |
+| **HARD** | | top of the file | Set `USE_GRID_PATH = True`. |
+| | 7 | `plan_waypoints()` | Turn the grid path into waypoints (cell centres). |
+| | 8 | `grid_path()` | Write the breadth-first search yourself (the steps are in the comments). |
+
+Do them in order and run after each one: after TODO 6, EASY is solved. HARD reuses the same driving
+code. Helpers you can use: `distance_to(x, y)`, `angle_to(x, y)`, `heading_error(yaw)`,
+`world_to_cell(x, y)`, `cell_to_world(row, col)`, `free_neighbours(cell)`, `print_grid(path)`.
+The settings at the top (`ARRIVED`, `FACING`) and your speeds are yours to tune: faster wins ties.
+
+**HARD grid:** the template turns `/map` into a 24 × 24 grid of 0.5 m cells (`self.grid[row][col]`,
+`True` = free, walls already made thicker by the robot's size). The lines between the centres of
+neighbouring free cells keep clear of the walls.
+
+![HARD planning grid](doc/hard-grid.png)
+
+**Breadth-first search (TODO 8)** finds the path with the fewest cells, like a wave spreading out from
+the start:
+
+![How BFS works](doc/bfs.png)
+
+1. Put the start cell in a **queue**, and write down `came_from[start] = None`.
+2. Take the **oldest** cell out of the queue. Look at its free neighbours (`free_neighbours(cell)`). For
+   every one you haven't seen yet (not in `came_from`): write down where you came from
+   (`came_from[next] = cell`) and add it to the **end** of the queue. Repeat until you take out the goal.
+   Because the queue is first in, first out, all cells 1 step away come first, then all cells 2 steps
+   away, and so on.
+3. Walk back from the goal: `goal → came_from[goal] → … → start`. Reverse that list: that's your path.
+
+Want more? Skip the cells where the path goes straight (fewer stops), or write your own planner on the
+full `/map`.
 
 | Topic | Type | In/out | Notes |
 |-------|------|--------|-------|
@@ -249,26 +298,7 @@ the TODOs in `control_loop()`.
 | `/base_scan` | `sensor_msgs/LaserScan` | in | 270°, 5 m, 1° steps, index 0 = rightmost ray |
 | `/cmd_vel` | `geometry_msgs/Twist` | **out** | `linear.x` ≤ 1.0 m/s, `angular.z` ≤ 0.78 rad/s |
 
-`/goals`, `/map` and `/odom` use the same frame: the robot starts at (0, 0).
-
-### Suggested approach
-
-1. **EASY: a go-to-pose controller.** Turn towards the next waypoint, drive to it, and at a goal turn
-   to the goal heading. With x-then-y waypoints this solves EASY.
-2. **HARD: the same controller plus a grid search.** The template turns `/map` into a 24 × 24 grid of
-   0.5 m cells (`self.grid[row][col]` in Python, `grid_[row][col]` in C++). `true` = free, with walls
-   already inflated by the robot's size.
-   - Search from the robot's cell to the goal's cell, e.g. **breadth-first search over 4 neighbours**.
-   - Drive through the centres of the path's cells: lines between neighbouring free cells are safe.
-   - `world_to_cell(x, y)` / `cell_to_world(row, col)` convert between metres and cells;
-     `print_grid(path)` draws the grid and your path in the terminal.
-
-   ![HARD planning grid](doc/hard-grid.png)
-
-   Skipping the cells where the path goes straight makes the robot faster. Your own planner on the
-   full `/map` is fine too.
-
-A team of three can split it: controller, search, testing on different seeds.
+A team of three can split it: TODO 1 + testing, TODO 2-6, TODO 7-8.
 
 ## Troubleshooting
 
