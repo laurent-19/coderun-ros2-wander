@@ -199,16 +199,10 @@ Run your solution (stop it with `Ctrl+C`):
 ros2 run coderun_student solution_cpp
 ```
 
-**Test loop:**
-
-1. $\color{red}{\textsf{Terminal 1}}$: start the arena. $\color{red}{\textsf{Terminal 2}}$: build (C++) and run your solution.
-2. Watch the robot. When all goals are reached (or time is up), $\color{red}{\textsf{Terminal 1}}$ prints `FINISHED ...` with
-   your score and the arena closes. The details are in a file you can read in $\color{red}{\textsf{Terminal 2}}$:
-   ```bash
-   cat /tmp/coderun_result.json
-   ```
-3. Stop your node with `Ctrl+C` ($\color{red}{\textsf{Terminal 2}}$), edit, and go back to 1. To stop a run early, press
-   `Ctrl+C` in $\color{red}{\textsf{Terminal 1}}$ too.
+When the run ends, $\color{red}{\textsf{Terminal 1}}$ prints `FINISHED ...` with your score. The details are in a file:
+```bash
+cat /tmp/coderun_result.json
+```
 
 **Always stop your old solution before you start a new run.** Two solutions running at the same time
 fight over the robot, and it drives into walls.
