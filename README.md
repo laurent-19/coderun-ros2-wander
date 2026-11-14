@@ -135,11 +135,16 @@ Start your container and open a shell in it:
 docker start -i coderun
 ```
 
-Start the arena and the judge (`task:=hard` for HARD; stop with `Ctrl+C`):
+Start the arena and the judge, **either** the EASY world:
 ```bash
 ros2 launch coderun_challenge challenge.launch.py task:=easy
 ```
-Stage and RViz open. Keep the Stage window open (a run without it is not valid).
+
+**or** the HARD world:
+```bash
+ros2 launch coderun_challenge challenge.launch.py task:=hard
+```
+Stage and RViz open (stop with `Ctrl+C`). Keep the Stage window open (a run without it is not valid).
 
 **$\color{red}{\textsf{Terminal 2}}$: your code.** Open a **new** Ubuntu terminal (Windows: WSL app or PowerShell + `wsl`).
 
@@ -152,7 +157,9 @@ The prompt changes to `root@...:~/ros_ws#`: you're inside the container.
 
 <img src="doc/docker-terminal.png" alt="docker exec into the container" width="400">
 
-Edit, build and run your code here.
+Edit, build and run your code here. The run command is **the same for EASY and HARD**: the world is
+chosen in $\color{red}{\textsf{Terminal 1}}$, and your code decides how to plan (`USE_GRID_PATH` at the top of the file,
+see [Your code](#4-your-code)).
 
 **Python** (no build needed).
 
@@ -203,6 +210,9 @@ ros2 run coderun_student solution_cpp
 3. Stop your node with `Ctrl+C` ($\color{red}{\textsf{Terminal 2}}$), edit, and go back to 1. To stop a run early, press
    `Ctrl+C` in $\color{red}{\textsf{Terminal 1}}$ too.
 
+**Always stop your old solution before you start a new run.** Two solutions running at the same time
+fight over the robot, and it drives into walls.
+
 **Stopping:**
 
 | Keys | In | Does |
@@ -235,7 +245,8 @@ ROS: the robot's pose is in `self.x, self.y, self.yaw` (C++: `x_, y_, yaw_`), th
 | | 8 | `grid_path()` | Write the breadth-first search yourself (the steps are in the comments). |
 
 Do them in order and run after each one: after TODO 6, EASY is solved. HARD reuses the same driving
-code. Helpers you can use: `distance_to(x, y)`, `angle_to(x, y)`, `heading_error(yaw)`,
+code. With `USE_GRID_PATH = True` your solution works in **both** worlds (the EASY corner points don't
+work in HARD), so finish with that. Helpers you can use: `distance_to(x, y)`, `angle_to(x, y)`, `heading_error(yaw)`,
 `world_to_cell(x, y)`, `cell_to_world(row, col)`, `free_neighbours(cell)`, `print_grid(path)`.
 The settings at the top (`ARRIVED`, `FACING`) and your speeds are yours to tune: faster wins ties.
 
@@ -278,6 +289,8 @@ A team of three can split it: TODO 1 + testing, TODO 2-6, TODO 7-8.
 | EASY | 110 | 10 | **18 per goal** (90), −5 per collision | 0.5 per minute left in the slot, max 10 |
 | HARD | 220 | 20 | **45 per goal** (180), −10 per collision | 1 per minute left in the slot, max 20 |
 
+- **One score per team, max 220.** Your hand-in is graded in EASY and in HARD, and the **better** of the
+  two counts (they don't add up). HARD builds on EASY, so solve EASY first, then go for HARD.
 - **Baseline:** for taking part.
 - **Time points:** for every minute left in the slot when you hand in, but only if your goal points
   are **at least 50%** (≥ 45 EASY / ≥ 90 HARD).
@@ -335,6 +348,7 @@ email, say whether you used **Python** or **C++**. The time of the email is your
 | `container ... is not running` | `docker start coderun`, then `docker exec -it coderun bash` again. |
 | No Stage / RViz window, X server error | `xhost +local:root` outside the container, then restart it. |
 | Robot doesn't react to your node | Both terminals must be inside the same container (`docker exec`). |
+| Robot is stuck against a wall, or drives into a wall / jerks right after the start | Probably an old solution is still running. Stop every solution with `Ctrl+C` (check every terminal), close the world with `Ctrl+C` in Terminal 1, start the world again, then run your solution again. |
 | `docker pull` fails | Build the image yourself (see below). |
 
 If `docker pull` fails, build the image yourself.
