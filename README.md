@@ -122,20 +122,37 @@ system; **if you're already on Ubuntu/Linux, skip straight to "Install Docker En
 
 ### Windows: install WSL
 
-In PowerShell (as Administrator):
+**1. Open PowerShell.** Press the Windows key, type `PowerShell`, and open **Windows PowerShell**
+(right-click → *Run as administrator* for the install step).
+
+![Search for PowerShell](doc/win-powershell-search.png)
+
+![PowerShell terminal](doc/win-powershell-terminal.png)
+
+**2. Install WSL** (once) by running in PowerShell:
 ```bash
 wsl --install -d Ubuntu-22.04
 ```
 Restart your PC if asked, then pick a username/password for the new Ubuntu when prompted.
 
-From now on, **every time you come back to this** — new PowerShell window, after a reboot, on the day
-of the event — open a WSL shell first. Plain PowerShell is Windows, not Linux: none of the `docker`/
-`ros2` commands in this README work there.
-```bash
-wsl
-```
-You should land on a Linux-style prompt (e.g. `you@yourpc:~$`) before going any further. Run every
-command below — including `docker ...` — inside this WSL shell, not in PowerShell.
+**3. Open a WSL (Ubuntu) shell.** After the install, use either way:
+
+- In the PowerShell terminal, run `wsl`. The prompt changes from `PS C:\...>` to a Linux prompt:
+  ```bash
+  wsl
+  ```
+  ![wsl in PowerShell](doc/win-powershell-wsl.png)
+
+- Or press the Windows key, type `WSL`, open the **WSL** app and a new terminal opens straight in Ubuntu:
+
+  ![Search for WSL](doc/win-wsl-search.png)
+
+  ![WSL terminal](doc/win-wsl-terminal.png)
+
+From now on, **every time you come back to this** (new window, after a reboot, on the day of the event)
+open a WSL shell first. Plain PowerShell is Windows, not Linux: none of the `docker`/`ros2` commands in
+this README work there. Run every command below, including `docker ...`, in the WSL shell (prompt like
+`you@yourpc:~$`).
 
 ### Install Docker Engine
 
