@@ -30,7 +30,7 @@ of **goal poses** (x, y, heading), **in order**, **without touching anything**, 
 | | Goals | Map |
 |---|---|---|
 | **EASY** | 5 (the last one random) | Sparse blocks. Driving first along x, then along y from goal to goal always works. |
-| **HARD** | 4 (all random) | Staggered walls and pillars. The straight line to the next goal is **always blocked**, so you have to plan a path (e.g. A* on `/map`). |
+| **HARD** | 4 (all random) | Staggered walls and pillars. The straight line to the next goal is **always blocked**, so you have to plan a path. The template gives you a small grid for that (see below). |
 
 | Easy Mode | Hard Mode |
 |-----------|-----------|
@@ -38,6 +38,28 @@ of **goal poses** (x, y, heading), **in order**, **without touching anything**, 
 | ![Easy Stage](doc/easy-stage-map.png) | ![Hard Stage](doc/hard-stage-map.png) |
 
 The markers are only visual. The laser can't see them and they don't cause collisions.
+
+### Suggested approach
+
+1. **EASY: a go-to-pose controller.** Turn on the spot towards the next waypoint, drive to it, and at
+   a goal turn to the goal heading. With x-then-y waypoints, this alone solves EASY.
+2. **HARD: the same controller plus a search on a grid.** The template turns `/map` into
+   `self.grid[row][col]`, a 24 × 24 grid of 0.5 m cells. `True` means free, and the walls are already
+   inflated by the robot's size.
+   - Search from the robot's cell to the goal's cell, e.g. with **breadth-first search over the 4
+     neighbours**: about 20 lines of Python.
+   - Drive through the centres of the cells on the path. The straight lines between neighbouring free
+     cell centres keep clear of the walls.
+   - `world_to_cell(x, y)` and `cell_to_world(row, col)` convert between metres and cells.
+     `print_grid(path)` draws the grid and your path in the terminal.
+
+   ![HARD planning grid](doc/hard-grid.png)
+
+   You can skip the cells where the path goes straight on, so the robot makes fewer stops. You can also
+   use your own planner on the full `/map`; anything that reaches the goals without collisions counts.
+
+A team of three can split the work: one person on the controller, one on the search, one testing on
+different seeds (`seed:=…`).
 
 ## 2. Input / output
 

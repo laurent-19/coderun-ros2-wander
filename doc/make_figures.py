@@ -4,6 +4,7 @@ Draw the README figures that explain the challenge rules (host only, needs matpl
 
     doc/legend.png      what the markers in Stage / RViz mean, collisions, goal order
     doc/goal-check.png  when a goal counts as reached (position AND heading)
+    doc/hard-grid.png   the template's planning grid on the HARD map with a BFS path (seed 42)
 
     python3 doc/make_figures.py
 
@@ -11,7 +12,14 @@ The numbers come from the challenge config / scorer, so the drawings are to scal
 """
 
 import math
+import sys
+from collections import deque
 from pathlib import Path
+
+import numpy as np
+import yaml
+from PIL import Image
+from scipy import ndimage
 
 import matplotlib
 matplotlib.use('Agg')
@@ -20,6 +28,11 @@ from matplotlib import patches  # noqa: E402
 from matplotlib.transforms import Affine2D  # noqa: E402
 
 OUT = Path(__file__).resolve().parent
+PKG = OUT.parent / 'challenge' / 'src' / 'coderun_challenge'
+sys.path.insert(0, str(PKG))
+from coderun_challenge import sampler  # noqa: E402
+
+CELL, CLEARANCE = 0.5, 0.35    # coderun_student/solution.py build_grid()
 GOAL_R = 0.3            # config/*_goals.yaml goal_radius (m)
 YAW_TOL = 20.0          # config/*_goals.yaml yaw_tolerance_deg
 COLLIDE = 0.28          # scorer.py COLLIDE_DIST: robot centre to wall (m)
@@ -135,7 +148,76 @@ def goal_check():
     plt.close(fig)
 
 
+def hard_grid(seed=42):
+    cfg = yaml.safe_load((PKG / 'config' / 'hard_goals.yaml').read_text())
+    bitmap = sampler.bitmap_path(PKG, 'hard')
+    occ = np.array(Image.open(bitmap).convert('L')) < 128
+    h, w = occ.shape[0] // 2 * 2, occ.shape[1] // 2 * 2
+    occ = np.flipud(occ[:h, :w].reshape(h // 2, 2, w // 2, 2).max(axis=(1, 3)))    # = /map
+    res, size = 0.04, cfg['world_size']
+    x0, y0 = cfg['map_origin']['x'] - size / 2, cfg['map_origin']['y'] - size / 2
+    to_wall = ndimage.distance_transform_edt(~occ) * res
+    n = int(size / CELL)
+    grid = [[to_wall[int((r + .5) * CELL / res), int((c + .5) * CELL / res)] >= CLEARANCE for c in range(n)]
+            for r in range(n)]
+    goals = sampler.sample_goals(cfg, bitmap, seed)
+
+    def cell(x, y):
+        return int((y - y0) // CELL), int((x - x0) // CELL)
+
+    def centre(r, c):
+        return x0 + (c + .5) * CELL, y0 + (r + .5) * CELL
+
+    def bfs(a, b):
+        prev, q = {a: None}, deque([a])
+        while q:
+            u = q.popleft()
+            if u == b:
+                break
+            for v in ((u[0] + 1, u[1]), (u[0] - 1, u[1]), (u[0], u[1] + 1), (u[0], u[1] - 1)):
+                if 0 <= v[0] < n and 0 <= v[1] < n and grid[v[0]][v[1]] and v not in prev:
+                    prev[v] = u
+                    q.append(v)
+        path = []
+        while b is not None:
+            path.append(b)
+            b = prev[b]
+        return path[::-1]
+
+    fig, ax = plt.subplots(figsize=(7.6, 7.6))
+    ax.imshow(np.where(occ, 0.3, 1.0), cmap='gray', vmin=0, vmax=1, origin='lower',
+              extent=(x0, x0 + size, y0, y0 + size), zorder=0)
+    for r in range(n):
+        for c in range(n):
+            if not grid[r][c]:
+                ax.add_patch(patches.Rectangle((x0 + c * CELL, y0 + r * CELL), CELL, CELL, color=BAD,
+                                               alpha=0.22, lw=0, zorder=1))
+    for k in range(n + 1):
+        ax.plot([x0 + k * CELL] * 2, [y0, y0 + size], color='gray', lw=0.3, zorder=1)
+        ax.plot([x0, x0 + size], [y0 + k * CELL] * 2, color='gray', lw=0.3, zorder=1)
+    pts = [(0.0, 0.0)] + [(g['x'], g['y']) for g in goals]
+    for a, b in zip(pts, pts[1:]):
+        path = [a] + [centre(*c) for c in bfs(cell(*a), cell(*b))] + [b]
+        ax.plot(*zip(*path), color='#1565c0', lw=2, zorder=3)
+        ax.plot(*zip(*path[1:-1]), 'o', color='#1565c0', ms=2.5, zorder=3)
+    pose_marker(ax, 0, 0, 0, GREEN, 'S')
+    robot(ax, 0, 0, 0)
+    for i, g in enumerate(goals, start=1):
+        pose_marker(ax, g['x'], g['y'], g['yaw_deg'], CYAN, str(i))
+    ax.set_xlim(x0, x0 + size)
+    ax.set_ylim(y0, y0 + size)
+    ax.set_aspect('equal')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(f'HARD: self.grid ({n}x{n} cells of {CELL} m). Red = blocked (closer than {CLEARANCE} m '
+                 'to a wall)\nBlue = BFS path through the free cell centres, goal to goal (seed 42)', fontsize=10)
+    fig.tight_layout()
+    fig.savefig(OUT / 'hard-grid.png', dpi=100)
+    plt.close(fig)
+
+
 if __name__ == '__main__':
     legend()
     goal_check()
-    print('wrote', OUT / 'legend.png', OUT / 'goal-check.png')
+    hard_grid()
+    print('wrote', OUT / 'legend.png', OUT / 'goal-check.png', OUT / 'hard-grid.png')
