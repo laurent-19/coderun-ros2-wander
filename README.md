@@ -116,13 +116,30 @@ goal, collisions, seed, score.
 
 The image is about 1.8 GB. Pull it and run the demo once at home: the venue Wi-Fi is shared.
 
-### Windows (WSL)
+Everything below runs inside the container, which is built on **Ubuntu** — Docker and ROS 2 need a
+Linux system under them. **Windows users need WSL (Windows Subsystem for Linux)** to get that Ubuntu
+system; **if you're already on Ubuntu/Linux, skip straight to "Install Docker Engine" below.**
 
+### Windows: install WSL
+
+In PowerShell (as Administrator):
 ```bash
 wsl --install -d Ubuntu-22.04
 ```
+Restart your PC if asked, then pick a username/password for the new Ubuntu when prompted.
 
-Inside WSL (and on native Ubuntu), install Docker Engine:
+From now on, **every time you come back to this** — new PowerShell window, after a reboot, on the day
+of the event — open a WSL shell first. Plain PowerShell is Windows, not Linux: none of the `docker`/
+`ros2` commands in this README work there.
+```bash
+wsl
+```
+You should land on a Linux-style prompt (e.g. `you@yourpc:~$`) before going any further. Run every
+command below — including `docker ...` — inside this WSL shell, not in PowerShell.
+
+### Install Docker Engine
+
+Inside WSL (or on native Ubuntu):
 ```bash
 sudo apt update && sudo apt install -y docker.io x11-xserver-utils
 ```
@@ -187,6 +204,8 @@ docker rm coderun        # delete
 - **`xhost` not found:** `sudo apt install x11-xserver-utils`
 - **X server error:** `xhost +local:root` and `export DISPLAY=:0`
 - **Container name exists:** `docker rm coderun`
+- **`docker exec` says "container ... is not running":** it was stopped (e.g. after a reboot). Start
+  it first with `docker start coderun`, then run `docker exec -it coderun bash` again.
 - **Topics not visible:** use the same `ROS_DOMAIN_ID` everywhere. `docker exec` shells inherit the
   container's environment.
 - **Build from source** (if the pull fails):
