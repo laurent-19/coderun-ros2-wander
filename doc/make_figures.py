@@ -32,7 +32,7 @@ PKG = OUT.parent / 'challenge' / 'src' / 'coderun_challenge'
 sys.path.insert(0, str(PKG))
 from coderun_challenge import sampler  # noqa: E402
 
-CELL, CLEARANCE = 0.5, 0.35    # coderun_student/solution.py build_grid()
+CELL, CLEARANCE = 0.5, 0.35    # coderun_student/python/solution.py build_grid()
 GOAL_R = 0.3            # config/*_goals.yaml goal_radius (m)
 YAW_TOL = 20.0          # config/*_goals.yaml yaw_tolerance_deg
 COLLIDE = 0.28          # scorer.py COLLIDE_DIST: robot centre to wall (m)

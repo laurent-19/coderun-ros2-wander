@@ -1,233 +1,224 @@
 # CodeRun 2026 - Path Planning Challenge
 
-A delivery robot has just been installed in a warehouse. Each morning it gets a list of stations, which
-it has to visit in order. At every station it must stop, facing the right way, so it can dock. Shelves
-and walls are in the way, the station list changes every day, and the faster the robot finishes its
-round, the better. Your job is to write its brain.
+A warehouse robot gets a list of stations every morning. It has to visit them **in order**, stop at
+each one **facing the right way**, **without touching** shelves or walls, and **as fast as possible**.
+Your job is to write its brain.
 
-You control a differential-drive robot in the Stage simulator (ROS 2 Humble). Drive it through a list
-of **goal poses** (x, y, heading), **in order**, **without touching anything**, as fast as you can.
+You program a robot in the Stage simulator (ROS 2 Humble), in **Python or C++**.
 
 ![Demo](doc/coderun-demo.gif)
 
-## 1. Requirements
+## 1. The task
 
 ![What you see](doc/legend.png)
 
-1. **Read the goals at runtime** from `/goals`. They are random at every launch: in EASY the last one
-   is random, in HARD all of them are. Hard-coded positions will not work.
-2. **Visit the goals in order** (1 → 2 → 3 …). Only the *next* goal counts. Driving through a later one
-   first does nothing.
+1. **Read the goals at runtime** from `/goals`. They change at every launch, so hard-coded positions
+   won't work.
+2. **Visit them in order** (1 → 2 → 3 …). Only the next goal counts.
 3. **A goal is reached** when the robot is **within 0.3 m** of it **and** its heading is **within ±20°**
-   of the goal heading at the same moment. The white arrow in the marker shows that heading.
+   of the goal heading (the white arrow).
 
    ![When a goal counts](doc/goal-check.png)
 
-4. **Don't touch anything.** If the robot centre comes closer than **0.28 m** to a wall or obstacle,
-   that counts as one collision. The next one can only count after the robot has moved away again.
-5. **Time limit:** 20 minutes of driving per run. The clock starts when the robot first moves.
+4. **Don't touch anything.** Robot centre closer than **0.28 m** to a wall = one collision.
+5. **Time limit:** 20 minutes per run, starting when the robot first moves.
 
 | | Goals | Map |
 |---|---|---|
-| **EASY** | 5 (the last one random) | Sparse blocks. Driving first along x, then along y from goal to goal always works. |
-| **HARD** | 4 (all random) | Staggered walls and pillars. The straight line to the next goal is **always blocked**, so you have to plan a path. The template gives you a small grid for that (see below). |
+| **EASY** | 5 (the last one random) | Sparse blocks. Driving first along x, then along y, always works. |
+| **HARD** | 4 (all random) | Walls and pillars. The straight line to the next goal is **always blocked**: you must plan a path. |
 
-| Easy Mode | Hard Mode |
-|-----------|-----------|
+| Easy | Hard |
+|------|------|
 | ![Easy RViz](doc/easy-rviz.png) | ![Hard RViz](doc/hard-rviz.png) |
 | ![Easy Stage](doc/easy-stage-map.png) | ![Hard Stage](doc/hard-stage-map.png) |
 
-The markers are only visual. The laser can't see them and they don't cause collisions.
+The markers are only drawings: the laser can't see them and they don't cause collisions.
 
-### Suggested approach
+## 2. Scoring
 
-1. **EASY: a go-to-pose controller.** Turn on the spot towards the next waypoint, drive to it, and at
-   a goal turn to the goal heading. With x-then-y waypoints, this alone solves EASY.
-2. **HARD: the same controller plus a search on a grid.** The template turns `/map` into
-   `self.grid[row][col]`, a 24 × 24 grid of 0.5 m cells. `True` means free, and the walls are already
-   inflated by the robot's size.
-   - Search from the robot's cell to the goal's cell, e.g. with **breadth-first search over the 4
-     neighbours**: about 20 lines of Python.
-   - Drive through the centres of the cells on the path. The straight lines between neighbouring free
-     cell centres keep clear of the walls.
-   - `world_to_cell(x, y)` and `cell_to_world(row, col)` convert between metres and cells.
-     `print_grid(path)` draws the grid and your path in the terminal.
+| Mode | Max | Baseline | Goals | Time points |
+|------|-----|----------|-------|-------------|
+| EASY | 110 | 10 | **18 per goal** (90), −5 per collision | 0.5 per minute left in the slot, max 10 |
+| HARD | 220 | 20 | **45 per goal** (180), −10 per collision | 1 per minute left in the slot, max 20 |
 
-   ![HARD planning grid](doc/hard-grid.png)
+- **Baseline:** for taking part.
+- **Time points:** for every minute left in the slot when you hand in, but only if your goal points
+  are **at least 50%** (≥ 45 EASY / ≥ 90 HARD).
+- **Ties:** the faster robot run wins.
 
-   You can skip the cells where the path goes straight on, so the robot makes fewer stops. You can also
-   use your own planner on the full `/map`; anything that reaches the goals without collisions counts.
+Example: EASY, 5/5 goals, 1 collision, handed in 12 min before the end: 10 + (90 − 5) + 0.5 × 12 = **101**.
 
-A team of three can split the work: one person on the controller, one on the search, one testing on
-different seeds (`seed:=…`).
+## 3. Rules
 
-## 2. Input / output
-
-Your node: `~/ros_ws/src/coderun_student/coderun_student/solution.py` (the template subscribes to
-everything for you).
-
-| Topic | Type | Direction | Notes |
-|-------|------|-----------|-------|
-| `/goals` | `geometry_msgs/PoseArray` | in | Goal poses in order. Latched: subscribe with transient-local QoS (see the template) |
-| `/map` | `nav_msgs/OccupancyGrid` | in | 0.04 m cells, `100` = wall, `0` = free, row 0 = lowest y. Latched |
-| `/odom` | `nav_msgs/Odometry` | in | Robot pose estimate, starts at (0, 0, 0) |
-| `/base_scan` | `sensor_msgs/LaserScan` | in | 270°, 5 m, 1° steps. Index 0 = rightmost ray |
-| `/cmd_vel` | `geometry_msgs/Twist` | **out** | `linear.x` ≤ 1.0 m/s, `angular.z` ≤ 0.78 rad/s |
-
-`/goals`, `/map` and `/odom` are all in the same frame, with the robot starting at its origin.
-`/ground_truth` belongs to the judge. Don't subscribe to it and don't publish on it (see Rules).
-
-## 3. Scoring
-
-| Mode | Max | Baseline | Requirements | Time points |
-|------|-----|----------|--------------|-------------|
-| EASY | 110 | 10 | 90 = **18 per goal**, −5 per collision | 0.5 per minute left in the slot, max 10 |
-| HARD | 220 | 20 | 180 = **45 per goal**, −10 per collision | 1 per minute left in the slot, max 20 |
-
-- **Baseline:** you get it just for taking part.
-- **Requirements:** points per goal reached, minus the collision penalty (never below 0).
-- **Time points:** for every minute left in the CodeRun slot when you hand in your solution. You only
-  get them if your requirement points are **at least 50%** (≥ 45 EASY / ≥ 90 HARD).
-- **Ties** are broken by the robot run time (`elapsed_s`).
-
-Examples:
-
-| Mode | Run | Hand-in | Score |
-|------|-----|---------|-------|
-| EASY | 5/5 goals, 1 collision | 12 min before the end | 10 + (90 − 5) + 0.5 × 12 = **101** |
-| HARD | 3/4 goals, 0 collisions | 25 min before the end | 20 + 135 + min(20, 25) = **175** |
-| HARD | 1/4 goals | 40 min before the end | 20 + 45 + 0 (45 < 90) = **65** |
-
-When you run it yourself, the judge writes `/tmp/coderun_result.json`: goals reached, the time of each
-goal, collisions, seed, score.
-
-## 4. Rules
-
-- **AI is forbidden.** No AI assistants or code generators (ChatGPT, Copilot, Claude, Gemini, …) during
-  the challenge. Documentation, ROS docs and web search are allowed. The graders may ask you to explain
+- **No AI** (ChatGPT, Copilot, Claude, Gemini, …). Docs and web search are fine. Be ready to explain
   your code.
-- **What you hand in:** your `solution.py` (plus any extra Python files it imports).
-- **Official grading:** the company staff run your solution on their own machine, on official seeds you
-  don't know in advance, with the same judge. The result is the average over those runs. A run where
-  anything other than the simulator publishes the judge's ground truth is invalid.
-- Use only `/goals`, `/map`, `/odom`, `/base_scan` and `/cmd_vel`.
+- **Hand in** your whole `coderun_student` folder by email (see [Hand in](#6-hand-in)). Write your code in
+  `python/solution.py` **or** `src/solution.cpp` (extra files next to it are fine).
+- Use only `/goals`, `/map`, `/odom`, `/base_scan` and `/cmd_vel`. Never touch `/ground_truth`.
+- The staff grade your solution on their machine, on seeds you don't know, and average the runs.
 
-## 5. Setup (do this BEFORE the event)
+## 4. Setup (once, at home: the image is 1.8 GB)
 
-The image is about 1.8 GB. Pull it and run the demo once at home: the venue Wi-Fi is shared.
+Everything runs in an **Ubuntu** Docker container. On **Ubuntu**, open a terminal (`Ctrl+Alt+T`) and go
+to step 2. On **Windows**, you first need WSL, which gives you Ubuntu inside Windows.
 
-Everything below runs inside the container, which is built on **Ubuntu** — Docker and ROS 2 need a
-Linux system under them. **Windows users need WSL (Windows Subsystem for Linux)** to get that Ubuntu
-system; **if you're already on Ubuntu/Linux, skip straight to "Install Docker Engine" below.**
+### Step 1 (Windows only): install WSL and open an Ubuntu terminal
 
-### Windows: install WSL
+Press the Windows key, type `PowerShell`, right-click **Windows PowerShell** → *Run as administrator*:
 
-**1. Open PowerShell.** Press the Windows key, type `PowerShell`, and open **Windows PowerShell**
-(right-click → *Run as administrator* for the install step).
+| Search | PowerShell |
+|---|---|
+| <img src="doc/win-powershell-search.png" alt="Search for PowerShell" width="200"> | <img src="doc/win-powershell-terminal.png" alt="PowerShell terminal" width="350"> |
 
-![Search for PowerShell](doc/win-powershell-search.png)
-
-![PowerShell terminal](doc/win-powershell-terminal.png)
-
-**2. Install WSL** (once) by running in PowerShell:
 ```bash
 wsl --install -d Ubuntu-22.04
 ```
-Restart your PC if asked, then pick a username/password for the new Ubuntu when prompted.
 
-**3. Open a WSL (Ubuntu) shell.** After the install, use either way:
+Restart if asked, and choose a Linux username and password.
 
-- In the PowerShell terminal, run `wsl`. The prompt changes from `PS C:\...>` to a Linux prompt:
-  ```bash
-  wsl
-  ```
-  ![wsl in PowerShell](doc/win-powershell-wsl.png)
+**Opening an Ubuntu terminal** (you need one for everything that follows):
 
-- Or press the Windows key, type `WSL`, open the **WSL** app and a new terminal opens straight in Ubuntu:
+- open PowerShell and type `wsl`, **or**
+- press the Windows key, type `WSL` and open the **WSL** app.
 
-  ![Search for WSL](doc/win-wsl-search.png)
+| `wsl` in PowerShell | WSL app | WSL terminal |
+|---|---|---|
+| <img src="doc/win-powershell-wsl.png" alt="wsl in PowerShell" width="350"> | <img src="doc/win-wsl-search.png" alt="Search for WSL" width="200"> | <img src="doc/win-wsl-terminal.png" alt="WSL terminal" width="250"> |
 
-  ![WSL terminal](doc/win-wsl-terminal.png)
+You're in Ubuntu when the prompt looks like `you@pc:~$`. A prompt like `PS C:\...>` is still Windows,
+where none of the commands below work.
 
-From now on, **every time you come back to this** (new window, after a reboot, on the day of the event)
-open a WSL shell first. Plain PowerShell is Windows, not Linux: none of the `docker`/`ros2` commands in
-this README work there. Run every command below, including `docker ...`, in the WSL shell (prompt like
-`you@yourpc:~$`).
+### Step 2: install Docker
 
-### Install Docker Engine
-
-Inside WSL (or on native Ubuntu):
+In the Ubuntu terminal:
 ```bash
 sudo apt update && sudo apt install -y docker.io x11-xserver-utils
-```
-
-```bash
 sudo usermod -aG docker $USER
 ```
+Close the terminal and open a new one, so you can use `docker` without `sudo`.
 
-Log out and back in (or `newgrp docker`).
-
-### Start the container
+### Step 3: download the image and create your container
 
 ```bash
 docker pull laurentiupopa/coderun-ros2-wander:latest
-```
-
-```bash
 xhost +local:root
-```
-
-Pick a **unique** `ROS_DOMAIN_ID` for your team (1–99, e.g. your team number). Together with
-`ROS_LOCALHOST_ONLY=1`, this stops your robot from hearing other teams' robots on the same network.
-```bash
-export ROS_DOMAIN_ID=<your team number>
-```
-
-```bash
+export ROS_DOMAIN_ID=<your team number, 1-99>
 docker run -it --name coderun --privileged --network=host -e DISPLAY=$DISPLAY -e ROS_DOMAIN_ID=$ROS_DOMAIN_ID -e ROS_LOCALHOST_ONLY=1 -v /tmp/.X11-unix:/tmp/.X11-unix:ro -w /root/ros_ws laurentiupopa/coderun-ros2-wander:latest bash
 ```
 
-### Run
+The prompt changes to `root@...:~/ros_ws#`: you're now **inside the container**. The team number keeps
+your robot separate from the other teams' robots.
 
-**Terminal 1**: arena + judge:
+Do `docker run` **only once**. Your code lives inside this container: `docker rm coderun` deletes it.
+
+## 5. Working on your solution
+
+You need **two terminals**, both inside the container.
+
+**Terminal 1: the arena and the judge.** The first time, this is the terminal where you ran
+`docker run`. Later (new day, after a reboot), open an Ubuntu terminal and run:
 ```bash
-ros2 launch coderun_challenge challenge.launch.py task:=easy team:=MyTeam
+xhost +local:root
+docker start -i coderun
 ```
+Then start the arena (`task:=hard` for HARD):
+```bash
+ros2 launch coderun_challenge challenge.launch.py task:=easy
+```
+Stage and RViz open. Keep the Stage window open (a run without it is not valid).
 
-**Terminal 2**: open a second shell in the same container and start your solution:
+**Terminal 2: your code.** Open a **new** Ubuntu terminal (Windows: WSL app or PowerShell + `wsl`) and
+enter the same container:
 ```bash
 docker exec -it coderun bash
 ```
 
+**Edit** your file with `nano` (save `Ctrl+O` `Enter`, exit `Ctrl+X`):
+
+| | Python | C++ |
+|---|---|---|
+| Edit | `nano src/coderun_student/python/solution.py` | `nano src/coderun_student/src/solution.cpp` |
+| Build | not needed | `colcon build --packages-select coderun_student && source install/setup.bash` |
+| Run | `ros2 run coderun_student solution.py` | `ros2 run coderun_student solution_cpp` |
+
+(VS Code also works: *Dev Containers* extension → *Attach to Running Container* → `coderun`.)
+
+**Test loop:**
+
+1. Terminal 1: start the arena. Terminal 2: build (C++) and run your solution.
+2. Watch the robot. When all goals are reached (or time is up), Terminal 1 prints `FINISHED ...` with
+   your score and the arena closes. The details are in a file you can read in Terminal 2:
+   ```bash
+   cat /tmp/coderun_result.json
+   ```
+3. Stop your node with `Ctrl+C` (Terminal 2), edit, and go back to 1. To stop a run early, press
+   `Ctrl+C` in Terminal 1 too.
+
+The goals change at every launch. To repeat exactly the same goals while debugging, add `seed:=42` (any
+number) to the launch command.
+
+## 6. Hand in
+
+**1. Copy your code out of the container.** In an Ubuntu terminal **outside** the container (prompt
+`you@pc:~$`, not `root@...`):
 ```bash
-ros2 run coderun_student solution
+rm -rf ~/coderun_student
+docker cp coderun:/root/ros_ws/src/coderun_student ~/
 ```
+This puts the whole `coderun_student` folder (Python and C++) in your Linux home. Do it often as a
+backup too.
 
-The workspace is built with `--symlink-install`, so edits to `solution.py` work without a rebuild.
-Useful launch options: `task:=hard`, `seed:=42` (repeat the same goals), `rviz:=false`.
-Keep the Stage window open: with `gui:=false` the simulator runs faster than real time and the run is
-not valid.
+**2. Find the folder.** Windows: open File Explorer → **Linux** → **Ubuntu-22.04** → `home` → your Linux
+username → `coderun_student`. Ubuntu: it's in your home folder.
 
-### Container management
+<img src="doc/win-wsl-location.png" alt="Linux in File Explorer" width="250">
 
-```bash
-docker stop coderun      # pause
-docker start -i coderun  # resume
-docker rm coderun        # delete
-```
+**3. Zip and email it.** Right-click `coderun_student` → *Compress to ZIP file*, and send the zip to
+**ioanlaurentiupopa16@gmail.com** with the subject **`Coderun ROS2 wander - <TeamName>`**. In the
+email, say whether you used **Python** or **C++**. The time of the email is your hand-in time.
+
+## 7. Your code
+
+The template already subscribes to everything and publishes `/cmd_vel` 10 times a second. You fill in
+the TODOs in `control_loop()`.
+
+| Topic | Type | In/out | Notes |
+|-------|------|--------|-------|
+| `/goals` | `geometry_msgs/PoseArray` | in | Goal poses, in order |
+| `/map` | `nav_msgs/OccupancyGrid` | in | 0.04 m cells, `100` = wall, `0` = free, row 0 = lowest y |
+| `/odom` | `nav_msgs/Odometry` | in | Robot pose, starts at (0, 0, 0) |
+| `/base_scan` | `sensor_msgs/LaserScan` | in | 270°, 5 m, 1° steps, index 0 = rightmost ray |
+| `/cmd_vel` | `geometry_msgs/Twist` | **out** | `linear.x` ≤ 1.0 m/s, `angular.z` ≤ 0.78 rad/s |
+
+`/goals`, `/map` and `/odom` use the same frame: the robot starts at (0, 0).
+
+### Suggested approach
+
+1. **EASY: a go-to-pose controller.** Turn towards the next waypoint, drive to it, and at a goal turn
+   to the goal heading. With x-then-y waypoints this solves EASY.
+2. **HARD: the same controller plus a grid search.** The template turns `/map` into a 24 × 24 grid of
+   0.5 m cells (`self.grid[row][col]` in Python, `grid_[row][col]` in C++). `true` = free, with walls
+   already inflated by the robot's size.
+   - Search from the robot's cell to the goal's cell, e.g. **breadth-first search over 4 neighbours**.
+   - Drive through the centres of the path's cells: lines between neighbouring free cells are safe.
+   - `world_to_cell(x, y)` / `cell_to_world(row, col)` convert between metres and cells;
+     `print_grid(path)` draws the grid and your path in the terminal.
+
+   ![HARD planning grid](doc/hard-grid.png)
+
+   Skipping the cells where the path goes straight makes the robot faster. Your own planner on the
+   full `/map` is fine too.
+
+A team of three can split it: controller, search, testing on different seeds.
 
 ## Troubleshooting
 
-- **`xhost` not found:** `sudo apt install x11-xserver-utils`
-- **X server error:** `xhost +local:root` and `export DISPLAY=:0`
-- **Container name exists:** `docker rm coderun`
-- **`docker exec` says "container ... is not running":** it was stopped (e.g. after a reboot). Start
-  it first with `docker start coderun`, then run `docker exec -it coderun bash` again.
-- **Topics not visible:** use the same `ROS_DOMAIN_ID` everywhere. `docker exec` shells inherit the
-  container's environment.
-- **Build from source** (if the pull fails):
-  ```bash
-  git clone https://github.com/laurent-19/coderun-ros2-wander.git
-  cd coderun-ros2-wander
-  docker build -t laurentiupopa/coderun-ros2-wander:latest .
-  ```
+| Problem | Fix |
+|---------|-----|
+| `docker: permission denied` | Close the terminal and open a new one (step 2). |
+| `container name "/coderun" is already in use` | The container exists: use `docker start -i coderun`, not `docker run`. |
+| `container ... is not running` | `docker start coderun`, then `docker exec -it coderun bash` again. |
+| No Stage / RViz window, X server error | `xhost +local:root` outside the container, then restart it. |
+| Robot doesn't react to your node | Both terminals must be inside the same container (`docker exec`). |
+| `docker pull` fails | Build it yourself: `git clone https://github.com/laurent-19/coderun-ros2-wander.git && cd coderun-ros2-wander && docker build -t laurentiupopa/coderun-ros2-wander:latest .` |

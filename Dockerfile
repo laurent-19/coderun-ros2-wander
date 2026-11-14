@@ -6,9 +6,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install build tools and rosdep
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-colcon-common-extensions \
+    build-essential \
+    cmake \
     python3-rosdep \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    nano \
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && printf 'set tabsize 4\nset tabstospaces\n' >> /etc/nanorc
 
 # Initialize rosdep
 RUN rosdep init && rosdep update

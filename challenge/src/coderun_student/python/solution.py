@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 CodeRun - your solution node (starting point, based on Lab 2 "wander").
 
@@ -31,7 +32,7 @@ Plan waypoints that lead from goal to goal, then drive through them:
           print_grid() shows the grid in the terminal.
 
 Run it with (the workspace is built with --symlink-install, so edits apply without a rebuild):
-    ros2 run coderun_student solution
+    ros2 run coderun_student solution.py
 """
 
 import math
